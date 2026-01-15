@@ -1,0 +1,32 @@
+{
+  "name": "sniaff-mitmdump-mcp",
+  "version": "0.1.0",
+  "description": "MCP server for mitmproxy traffic capture and analysis",
+  "type": "module",
+  "bin": {
+    "sniaff-mitmdump-mcp": "./build/index.js"
+  },
+  "main": "./build/index.js",
+  "scripts": {
+    "build": "tsc",
+    "start": "node build/index.js",
+    "dev": "tsc --watch"
+  },
+  "files": [
+    "build",
+    "src/addon"
+  ],
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.0.0",
+    "zod": "^3.25.0",
+    "better-sqlite3": "^11.0.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "@types/better-sqlite3": "^7.6.0",
+    "typescript": "^5.0.0"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}
