@@ -11,16 +11,36 @@ export interface LogEntry {
 }
 
 export class Logger {
-  private logFile: string | null = null;
-  private logStream: fs.WriteStream | null = null;
+  private sessionLogFiles: Map<string, string> = new Map();
 
   constructor(private name: string = 'sniaff-mitmdump') {}
 
-  async initialize(logsDir: string): Promise<void> {
-    await fs.promises.mkdir(logsDir, { recursive: true });
-    const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
-    this.logFile = path.join(logsDir, `${this.name}-${timestamp}.log`);
-    this.logStream = fs.createWriteStream(this.logFile, { flags: 'a' });
+  async initialize(_logsDir: string): Promise<void> {
+    // No-op: we only log to session-specific files now
+  }
+
+  private async ensureLogDir(dir: string): Promise<void> {
+    try {
+      await fs.promises.mkdir(dir, { recursive: true });
+    } catch {
+      // Best effort
+    }
+  }
+
+  /**
+   * Register a session-specific log file. Logs with matching sessionId will be written there.
+   */
+  async registerSessionLog(sessionId: string, logsDir: string): Promise<void> {
+    await this.ensureLogDir(logsDir);
+    const sessionLogFile = path.join(logsDir, 'session.log');
+    this.sessionLogFiles.set(sessionId, sessionLogFile);
+  }
+
+  /**
+   * Unregister a session log file (call when session ends).
+   */
+  unregisterSessionLog(sessionId: string): void {
+    this.sessionLogFiles.delete(sessionId);
   }
 
   private formatEntry(level: LogLevel, message: string, context?: Record<string, unknown>): LogEntry {
@@ -35,11 +55,21 @@ export class Logger {
   private write(entry: LogEntry): void {
     const line = JSON.stringify(entry);
 
-    if (this.logStream) {
-      this.logStream.write(line + '\n');
-    }
-
+    // Always write to stderr for MCP compliance
     console.error(line);
+
+    // If context contains sessionId, write to session-specific log
+    if (entry.context && 'sessionId' in entry.context) {
+      const sessionId = entry.context.sessionId as string;
+      const sessionLogFile = this.sessionLogFiles.get(sessionId);
+      if (sessionLogFile) {
+        try {
+          fs.appendFileSync(sessionLogFile, line + '\n');
+        } catch {
+          // Ignore session log write errors
+        }
+      }
+    }
   }
 
   debug(message: string, context?: Record<string, unknown>): void {
@@ -59,11 +89,6 @@ export class Logger {
   }
 
   async close(): Promise<void> {
-    if (this.logStream) {
-      await new Promise<void>((resolve) => {
-        this.logStream!.end(resolve);
-      });
-      this.logStream = null;
-    }
+    // No-op: session logs are written synchronously
   }
 }

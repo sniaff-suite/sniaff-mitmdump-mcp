@@ -100,6 +100,9 @@ export class ProxyManager extends EventEmitter {
 
     this.sessions.set(sessionId, session);
 
+    // Register session-specific log file (mitm logs go in sessionId/mitm/)
+    await this.logger.registerSessionLog(sessionId, mitmDir);
+
     // Update shared state
     await this.stateClient.updateMitm(sessionId, {
       status: 'starting',
@@ -204,6 +207,9 @@ export class ProxyManager extends EventEmitter {
       pid: undefined,
     });
 
+    // Unregister session log
+    this.logger.unregisterSessionLog(sessionId);
+
     this.sessions.delete(sessionId);
     this.logger.info('Proxy stopped', { sessionId });
   }
@@ -241,6 +247,8 @@ export class ProxyManager extends EventEmitter {
         await this.stopProxy(sessionId);
       } catch (error) {
         this.logger.error('Error during cleanup', { sessionId, error: String(error) });
+        // Still unregister session log even if stop failed
+        this.logger.unregisterSessionLog(sessionId);
       }
     }
   }
